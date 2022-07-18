@@ -1,0 +1,60 @@
+---
+parameters:
+ age_groups:
+  descr: age groups to divide population for contact structure
+  default: ['0_18','18_40', '40_60', '60_']
+ Ca:
+  descr:   contact matrix for asymptomatic infectious individuals
+  default: [[5.426261, 3.123604, 2.024298, 0.7721236],
+            [2.243130, 6.950235, 3.665796, 1.0886557],
+            [1.480757, 3.734041, 4.410192, 1.9935507],
+            [0.723321, 1.420157, 2.553067, 3.1749014]]
+ Cs:
+  descr:   contact matrix for symptomatic infectious individuals
+  default: [[3.0936821, 2.0040047, 1.327612, 0.4982486], 
+            [1.4391208, 3.7987661, 2.131639, 0.6528657], 
+            [0.9711367, 2.1713234, 2.509774, 1.1321403], 
+            [0.4667564, 0.8516666, 1.449890, 1.8562895]] 
+ q:
+  descr:   transmission probability (proportionality factor for q)
+  default: 1
+ gamma:
+  descr:   incubation rate
+  default: 0.2
+ delta1:
+  descr:   recovery rate from asymptomatic infectious individuals
+  default: 0.2
+ delta2:
+  descr:   recovery rate from symptomatic infectious individuals
+  default: 0.3
+ theta:
+  descr:   rate from presymtomatic to a\symptomatic
+  default: 0.2
+ p:
+  descr:   probability of being asymptimatic
+  default: 0.3
+ kappa:
+  descr:   isolation exit rate
+  default: 0.05
+ tau_s:
+  descr:   strategic testing rate
+  default: 0.05
+ tsp:
+  descr:   tracing success probability
+  default: 0.5
+initial:
+ Su_0_18:
+  descr: proportion of Suceptibles of 0-18
+  value: 0.3
+ Su_18_40:
+  descr: proportion of Suceptibles of 18-40
+  value: 0.33
+ Su_40_60:
+  descr: proportion of Suceptibles of 40-60
+  value: 0.25
+ Su_60_:
+  descr: proportion of Suceptibles of 60+
+  value: 0.1
+ Ipu_18_40: 
+  descr: proportion of Infectius of 18-40
+  value: 0.02
