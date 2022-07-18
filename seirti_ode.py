@@ -12,7 +12,7 @@ log = logging.getLogger(__name__)
 class SEIRTIODE:
     name = "SEIR-TI ODE"
     # esto lo puedo incluir en el yaml
-    states_per_age = ['Su','Sd','Eu','Ed','Ipu','Ipd','Iau','Iad','Isu','Isd','Ru','Rd']    
+    states_per_age = ['S','Eu','Ed','Ipu','Ipd','Iau','Iad','Isu','Isd','R']    
 
     def set_parameters(self, **params):
         """
@@ -22,6 +22,7 @@ class SEIRTIODE:
             setattr(self, k, v)
         self.Ca = np.array(self.Ca)
         self.Cs = np.array(self.Cs)
+        self.Cp = np.array(self.Cp)
         self.states = [s + '_' + k for k in self.age_groups for s in self.states_per_age]
 
     def initial_conditions(self, **initial):
@@ -37,15 +38,18 @@ class SEIRTIODE:
         coupling = []
         for i,k in enumerate(self.age_groups):
             
-            # from Sd to Su
-            coupling.append((f'Sd_{k}:Sd_{k}=>Su_{k}', self.kappa, f'kappa_s_{k}'))
-            
-            # from Su to Sd, strategic testing
-            coupling.append((f'Su_{k}:Su_{k}=>Sd_{k}', self.tau_s, f'tau_s_{k}'))
-            
-            # from Eu to Ed, strategic testing
-            coupling.append((f'Eu_{k}:Eu_{k}=>Ed_{k}', self.tau_s, f'tau_E_{k}'))
-            
+            ### State progression ###           
+            # from S to Eu
+            for j,k_ in enumerate(self.age_groups): 
+                # from undiagnosed individuals           
+                coupling.append((f'S_{k}*Ipu_{k_}:S_{k}=>Eu_{k}', self.q*self.Cp[i,j]**(-1), f'beta_pu({i},{j})'))
+                coupling.append((f'S_{k}*Iau_{k_}:S_{k}=>Eu_{k}', self.q*self.Ca[i,j]**(-1), f'beta_au({i},{j})'))
+                coupling.append((f'S_{k}*Isu_{k_}:S_{k}=>Eu_{k}', self.q*self.Cs[i,j]**(-1), f'beta_su({i},{j})'))
+                # from diagnosed non-adherent individuals
+                coupling.append((f'S_{k}*Ipd_{k_}:S_{k}=>Eu_{k}', self.n*self.q*self.Cp[i,j]**(-1), f'beta_pd({i},{j})'))
+                coupling.append((f'S_{k}*Iad_{k_}:S_{k}=>Eu_{k}', self.n*self.q*self.Ca[i,j]**(-1), f'beta_ad({i},{j})'))
+                coupling.append((f'S_{k}*Isd_{k_}:S_{k}=>Eu_{k}', self.n*self.q*self.Cs[i,j]**(-1), f'beta_sd({i},{j})'))
+
             # from Eu to Ipu
             coupling.append((f'Eu_{k}:Eu_{k}=>Ipu_{k}', self.gamma, f'gamma_u_{k}'))
             
@@ -57,9 +61,6 @@ class SEIRTIODE:
             
             # from Ipu to Isu
             coupling.append((f'Ipu_{k}:Ipu_{k}=>Isu_{k}', (1-self.p)*self.theta, f'q_u_{k}'))
-            
-            # from Ipu to Ipd, strategic testing
-            coupling.append((f'Ipu_{k}:Ipu_{k}=>Ipd_{k}', self.tau_s, f'tau_ip_{k}'))
 
             # from Ipd to Iad
             coupling.append((f'Ipd_{k}:Ipd_{k}=>Iad_{k}', self.p*self.theta, f'p_d_{k}'))
@@ -67,40 +68,31 @@ class SEIRTIODE:
             # from Ipd to Isd
             coupling.append((f'Ipd_{k}:Ipd_{k}=>Isd_{k}', (1-self.p)*self.theta, f'q_d_{k}'))
             
-            # from Iau to Iad, strategic testing
-            coupling.append((f'Iau_{k}:Iau_{k}=>Iad_{k}', self.tau_s, f'tau_ia_{k}'))
+            # from Iau to R
+            coupling.append((f'Iau_{k}:Iau_{k}=>R_{k}', self.delta1, f'delta1_u_{k}'))
             
-            # from Iau to Ru
-            coupling.append((f'Iau_{k}:Iau_{k}=>Ru_{k}', self.delta1, f'delta1_u_{k}'))
+            # from Iad to R
+            coupling.append((f'Iad_{k}:Iad_{k}=>R_{k}', self.delta1, f'delta1_d_{k}'))
             
-            # from Iad to Rd
-            coupling.append((f'Iad_{k}:Iad_{k}=>Rd_{k}', self.delta1, f'delta1_d_{k}'))
+            # from Isu to R
+            coupling.append((f'Isu_{k}:Isu_{k}=>R_{k}', self.delta2, f'delta2_u_{k}'))
             
-            # from Isu to Ru
-            coupling.append((f'Isu_{k}:Isu_{k}=>Ru_{k}', self.delta2, f'delta2_u_{k}'))
+            # from Isd to R
+            coupling.append((f'Isd_{k}:Isd_{k}=>R_{k}', self.delta2, f'delta2_d_{k}'))
+
+            ### Testing (all forms) ###
             
-            # from Isd to Rd
-            coupling.append((f'Isd_{k}:Isd_{k}=>Rd_{k}', self.delta2, f'delta2_d_{k}'))
+            # from Iau to Iad, random + universal testing
+            coupling.append((f'Iau_{k}:Iau_{k}=>Iad_{k}', self.tau_r + self.tau_u, f'taur_ia_{k}'))            
+
+            # from Eu to Ed, random + universal testing
+            coupling.append((f'Eu_{k}:Eu_{k}=>Ed_{k}', self.tau_r + self.tau_u, f'taur_E_{k}'))
             
-            # from Isu to Isd, strategic testing
-            coupling.append((f'Isu_{k}:Isu_{k}=>Isd_{k}', self.tau_s, f'tau_is_{k}'))
+            # from Ipu to Ipd, random + universal testing
+            coupling.append((f'Ipu_{k}:Ipu_{k}=>Ipd_{k}', self.tau_r + self.tau_u, f'tau_ip_{k}'))
             
-            # from Ru to Rd, strategic testing
-            coupling.append((f'Ru_{k}:Ru_{k}=>Rd_{k}', self.tau_s, f'tau_r_{k}'))
-            
-            # from Rd to Ru
-            coupling.append((f'Rd_{k}:Rd_{k}=>Ru_{k}', self.kappa, f'kappa_r_{k}'))      
-    
-            for j,k_ in enumerate(self.age_groups):            
-            
-                # from Su to Eu
-                coupling.append((f'Su_{k}*Ipu_{k_}:Su_{k}=>Eu_{k}', self.q*self.Ca[i,j]**(-1), f'beta_pu({i},{j})'))
-                coupling.append((f'Su_{k}*Iau_{k_}:Su_{k}=>Eu_{k}', self.q*self.Ca[i,j]**(-1), f'beta_au({i},{j})'))
-                coupling.append((f'Su_{k}*Isu_{k_}:Su_{k}=>Eu_{k}', self.q*self.Cs[i,j]**(-1), f'beta_su({i},{j})'))
-                # from Sd to Eu
-                coupling.append((f'Sd_{k}*Ipu_{k_}:Sd_{k}=>Eu_{k}', self.q*self.Ca[i,j]**(-1), f'beta_pd({i},{j})'))
-                coupling.append((f'Sd_{k}*Iau_{k_}:Sd_{k}=>Eu_{k}', self.q*self.Ca[i,j]**(-1), f'beta_ad({i},{j})'))
-                coupling.append((f'Sd_{k}*Isu_{k_}:Sd_{k}=>Eu_{k}', self.q*self.Cs[i,j]**(-1), f'beta_sd({i},{j})'))
+            # from Isu to Isd, random + universal + symptomatic testing
+            coupling.append((f'Isu_{k}:Isu_{k}=>Isd_{k}', self.tau_s + self.tau_r + self.tau_u, f'tau_is_{k}'))
 
         return tuple(coupling)
 
@@ -150,7 +142,7 @@ def runModel(model, t0, tmax, steps, parameters={}, initial={}, seed=0, **unused
     np.random.seed(seed)
 
     m = model()
-    m.set_parameters(**dict((k, parameters[k]["default"])
+    m.set_parameters(**dict((k, parameters[k]["value"])
                                    for k in parameters.keys()))
     state = m.initial_conditions(**dict((k, initial[k]["value"])
                                    for k in initial.keys()))
