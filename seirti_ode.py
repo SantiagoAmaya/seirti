@@ -2,8 +2,7 @@ __all__ = ['SEIRTIODE']
 
 from typing_extensions import Self
 import numpy as np
-from cpyment import CModel
-from model import Model
+from model import modCModel
 import yaml
 import logging
 
@@ -12,7 +11,9 @@ log = logging.getLogger(__name__)
 class SEIRTIODE:
     name = "SEIR-TI ODE"
     # esto lo puedo incluir en el yaml
-    states_per_age = ['S','Eu','Ed','Ipu','Ipd','Iau','Iad','Isu','Isd','R']    
+    states_per_age = ['S_','Eu_','Ed_','Ipu_','Ipd_','Iau_','Iad_','Isu_','Isd_','R_']    
+    inter_compart = ['Ipi_','Iai_','Isi_']
+    states_per_age = states_per_age + inter_compart
 
     def set_parameters(self, **params):
         """
@@ -23,7 +24,7 @@ class SEIRTIODE:
         self.Ca = np.array(self.Ca)
         self.Cs = np.array(self.Cs)
         self.Cp = np.array(self.Cp)
-        self.states = [s + '_' + k for k in self.age_groups for s in self.states_per_age]
+        self.states = [s + k for k in self.age_groups for s in self.states_per_age]
 
     def initial_conditions(self, **initial):
                 
@@ -36,8 +37,7 @@ class SEIRTIODE:
     def couplings(self):
        # Now add the coupling
         coupling = []
-        for i,k in enumerate(self.age_groups):
-            
+        for i,k in enumerate(self.age_groups):            
             ### State progression ###           
             # from S to Eu
             for j,k_ in enumerate(self.age_groups): 
@@ -80,26 +80,24 @@ class SEIRTIODE:
             # from Isd to R
             coupling.append((f'Isd_{k}:Isd_{k}=>R_{k}', self.delta2, f'delta2_d_{k}'))
 
-            ### Testing (all forms) ###
-            
-            # from Iau to Iad, random + universal testing
-            coupling.append((f'Iau_{k}:Iau_{k}=>Iad_{k}', self.tau_r + self.tau_u, f'taur_ia_{k}'))            
+            ### Testing (all forms) ###            
 
             # from Eu to Ed, random + universal testing
-            coupling.append((f'Eu_{k}:Eu_{k}=>Ed_{k}', self.tau_r + self.tau_u, f'taur_E_{k}'))
+            coupling.append((f'Eu_{k}:Eu_{k}=>Ed_{k}', self.tau_r + self.tau_u, f'D_E_{k}'))
+
+            # from Ipu to Ipd, random + universal testing using intermetiate compartment to allow contact tracing
+            coupling.append((f'Ipu_{k}:Ipu_{k}=>Ipi_{k}', self.tau_r + self.tau_u, f'D_Ip_{k}'))
+            coupling.append((f'Ipi_{k}:Ipi_{k}=>Ipd_{k}', 1,f'Ipi_{k}'))
             
-            # from Ipu to Ipd, random + universal testing
-            coupling.append((f'Ipu_{k}:Ipu_{k}=>Ipd_{k}', self.tau_r + self.tau_u, f'tau_ip_{k}'))
-            
-            # from Isu to Isd, random + universal + symptomatic testing
-            coupling.append((f'Isu_{k}:Isu_{k}=>Isd_{k}', self.tau_s + self.tau_r + self.tau_u, f'tau_is_{k}'))
+            # from Iau to Iad, random + universal testing using intermetiate compartment to allow contact tracing
+            coupling.append((f'Iau_{k}:Iau_{k}=>Iai_{k}', self.tau_r + self.tau_u, f'D_Ia_{k}'))         
+            coupling.append((f'Iai_{k}:Iai_{k}=>Iad_{k}', 1,f'Iai_{k}'))
+
+            # from Isu to Isd, random + universal + symptomatic testing using intermetiate compartment to allow contact tracing
+            coupling.append((f'Isu_{k}:Isu_{k}=>Isi_{k}', self.tau_s + self.tau_r + self.tau_u, f'D_Is_{k}'))
+            coupling.append((f'Isi_{k}:Isi_{k}=>Isd_{k}', 1,f'Isi_{k}'))
 
         return tuple(coupling)
-
-    def reset_parameters(self, **params):
-        self.set_parameters(**params)
-        for _,rate, name in self.couplings(self.age_groups):
-            self.cm.edit_coupling_rate(name, rate)
 
     def run(self, t0, tmax, tsteps, initial_states):
         """
@@ -107,15 +105,19 @@ class SEIRTIODE:
         starting model state.
         """
         y0 = initial_states
-        N = sum(y0)
+        #N = sum(y0)
         #y0 = y0/N
-        self.cm = CModel(self.states)
+        self.cm = modCModel(n_age=len(self.age_groups), states=self.states)
+
+        
         for desc, rate, name in self.couplings():
             self.cm.set_coupling_rate(desc, rate, name=name)
 
         t = np.linspace(t0, tmax, tsteps+1)
-
-        traj = self.cm.integrate(t, y0, ivpargs={"max_step": 1.0})
+        cl = list(self.cm.couplings)
+        index_matrix_cou = np.array([[cl.index(c + k) for c in ['D_Ip_','D_Ia_','D_Is_']] for k in self.age_groups])
+        index_matrix_com = np.array([[self.states.index(c + k) for c in ['Ipi_','Iai_','Isi_']] for k in self.age_groups])
+        traj = self.cm.integrate(t, y0, index_matrix_cou, index_matrix_com, self.tsp*self.Cp**(-1), self.tsp*self.Ca**(-1), self.tsp*self.Cs**(-1), ivpargs={"max_step": 1.0})
 
         return (t, traj["y"])
 
@@ -151,10 +153,6 @@ def runModel(model, t0, tmax, steps, parameters={}, initial={}, seed=0, **unused
     log.info("Random seed: {}".format(seed))
     log.info("Parameters: {}".format(parameters))
     log.info("Initial conditions: {}".format(initial))
-
-    # piece-wise simulation segments
-    times = []
-    trajs = []
     
     t, traj = m.run(t0, tmax, steps, state)
 

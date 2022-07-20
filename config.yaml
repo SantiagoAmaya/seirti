@@ -32,10 +32,10 @@ parameters:
   value: 0.2
  delta1:
   descr:   recovery rate from asymptomatic infectious individuals
-  value: 0.2
+  value: 0.02
  delta2:
   descr:   recovery rate from symptomatic infectious individuals
-  value: 0.3
+  value: 0.03
  theta:
   descr:   rate from presymtomatic to a\symptomatic
   value: 0.2
@@ -50,13 +50,13 @@ parameters:
   value: 0.05
  tau_r:
   descr:   random diagnosing rate
-  value: 0.05
+  value: 0.005
  tau_u:
   descr:   universal diagnosing rate
   value: 0.05
  tsp:
   descr:   tracing success probability
-  value: 0.5
+  value: 0.1
 initial:
  S_0_18:
   descr: proportion of Suceptibles of 0-18
@@ -72,4 +72,4 @@ initial:
   value: 0.1
  Ipu_18_40: 
   descr: proportion of Infectius of 18-40
-  value: 0.1
+  value: 0.02
