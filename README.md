@@ -4,7 +4,7 @@ This repository is intended as a tool to develop an epidemiological compartmenta
 
 # System dynamics
 
-<img src="./img/seirti2.png" alt="drawing" width="600"/>
+<img src="./seirti2.jpg" alt="drawing" width="600"/>
 
 The inspiration for this model is taken from Simone et al., [2021](https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1008633), where they build a SEIR-TTI model (testing, tracing, and Isolating). In this project we extend the flexibility on infectious compartments but are not concerned with tracing (yet).
 
