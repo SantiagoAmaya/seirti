@@ -42,13 +42,13 @@ class SEIRTIODE:
             # from S to Eu
             for j,k_ in enumerate(self.age_groups): 
                 # from undiagnosed individuals           
-                coupling.append((f'S_{k}*Ipu_{k_}:S_{k}=>Eu_{k}', self.q*self.Cp[i,j]**(-1), f'beta_pu({i},{j})'))
-                coupling.append((f'S_{k}*Iau_{k_}:S_{k}=>Eu_{k}', self.q*self.Ca[i,j]**(-1), f'beta_au({i},{j})'))
-                coupling.append((f'S_{k}*Isu_{k_}:S_{k}=>Eu_{k}', self.q*self.Cs[i,j]**(-1), f'beta_su({i},{j})'))
+                coupling.append((f'S_{k}*Ipu_{k_}:S_{k}=>Eu_{k}', self.q*self.Cp[i,j], f'beta_pu({i},{j})'))
+                coupling.append((f'S_{k}*Iau_{k_}:S_{k}=>Eu_{k}', self.q*self.Ca[i,j], f'beta_au({i},{j})'))
+                coupling.append((f'S_{k}*Isu_{k_}:S_{k}=>Eu_{k}', self.q*self.Cs[i,j], f'beta_su({i},{j})'))
                 # from diagnosed non-adherent individuals
-                coupling.append((f'S_{k}*Ipd_{k_}:S_{k}=>Eu_{k}', self.n*self.q*self.Cp[i,j]**(-1), f'beta_pd({i},{j})'))
-                coupling.append((f'S_{k}*Iad_{k_}:S_{k}=>Eu_{k}', self.n*self.q*self.Ca[i,j]**(-1), f'beta_ad({i},{j})'))
-                coupling.append((f'S_{k}*Isd_{k_}:S_{k}=>Eu_{k}', self.n*self.q*self.Cs[i,j]**(-1), f'beta_sd({i},{j})'))
+                coupling.append((f'S_{k}*Ipd_{k_}:S_{k}=>Eu_{k}', self.n*self.q*self.Cp[i,j], f'beta_pd({i},{j})'))
+                coupling.append((f'S_{k}*Iad_{k_}:S_{k}=>Eu_{k}', self.n*self.q*self.Ca[i,j], f'beta_ad({i},{j})'))
+                coupling.append((f'S_{k}*Isd_{k_}:S_{k}=>Eu_{k}', self.n*self.q*self.Cs[i,j], f'beta_sd({i},{j})'))
 
             # from Eu to Ipu
             coupling.append((f'Eu_{k}:Eu_{k}=>Ipu_{k}', self.gamma, f'gamma_u_{k}'))
@@ -117,7 +117,7 @@ class SEIRTIODE:
         cl = list(self.cm.couplings)
         index_matrix_cou = np.array([[cl.index(c + k) for c in ['D_Ip_','D_Ia_','D_Is_']] for k in self.age_groups])
         index_matrix_com = np.array([[self.states.index(c + k) for c in ['Ipi_','Iai_','Isi_']] for k in self.age_groups])
-        traj = self.cm.integrate(t, y0, index_matrix_cou, index_matrix_com, self.tsp*self.Cp**(-1), self.tsp*self.Ca**(-1), self.tsp*self.Cs**(-1), ivpargs={"max_step": 1.0})
+        traj = self.cm.integrate(t, y0, index_matrix_cou, index_matrix_com, self.tsp*self.Cp, self.tsp*self.Ca, self.tsp*self.Cs, ivpargs={"max_step": 1.0})
 
         return (t, traj["y"])
 
