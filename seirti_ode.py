@@ -99,14 +99,12 @@ class SEIRTIODE:
 
         return tuple(coupling)
 
-    def run(self, t0, tmax, tsteps, initial_states):
+    def ode(self, t0, tmax, tsteps, initial_states):
         """
         Run the model from t0 to tmax in tsteps steps, given the
         starting model state.
         """
         y0 = initial_states
-        #N = sum(y0)
-        #y0 = y0/N
         self.cm = modCModel(n_age=len(self.age_groups), states=self.states)
 
         
@@ -121,7 +119,27 @@ class SEIRTIODE:
 
         return (t, traj["y"])
 
-def runModel(model, t0, tmax, steps, parameters={}, initial={}, seed=0, **unused):
+    def stochastic_binomial(self, t0, tmax, tsteps, initial_states, samples):
+        """
+        Run the model from t0 to tmax in tsteps steps, given the
+        starting model state.
+        """
+        y0 = initial_states
+        self.cm = modCModel(n_age=len(self.age_groups), states=self.states)
+
+        
+        for desc, rate, name in self.couplings():
+            self.cm.set_coupling_rate(desc, rate, name=name)
+        
+        t = np.linspace(t0, tmax, tsteps+1)
+        cl = list(self.cm.couplings)
+        index_matrix_cou = np.array([[cl.index(c + k) for c in ['D_Ip_','D_Ia_','D_Is_']] for k in self.age_groups])
+        index_matrix_com = np.array([[self.states.index(c + k) for c in ['Ipi_','Iai_','Isi_']] for k in self.age_groups])
+        traj = self.cm.binomial_chain(samples, tsteps, y0, index_matrix_cou, index_matrix_com, self.tsp*self.Cp, self.tsp*self.Ca, self.tsp*self.Cs, tmax/(tsteps+1))
+
+        return (t, traj)
+
+def runModel(model, stochastic, t0, tmax, steps, parameters={}, initial={}, samples=100, seed=0, **unused):
 
     """
     Run the provided model with the given parameters, initial conditions and
@@ -154,6 +172,9 @@ def runModel(model, t0, tmax, steps, parameters={}, initial={}, seed=0, **unused
     log.info("Parameters: {}".format(parameters))
     log.info("Initial conditions: {}".format(initial))
     
-    t, traj = m.run(t0, tmax, steps, state)
+    if stochastic:
+        t, traj = m.stochastic_binomial(t0, tmax, steps, state, samples)
+    else:
+        t, traj = m.ode(t0, tmax, steps, state)
 
     return t, traj, m.states
