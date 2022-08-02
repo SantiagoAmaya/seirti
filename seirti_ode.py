@@ -119,7 +119,7 @@ class SEIRTIODE:
         index_matrix_cou = np.array([[cl.index(c + k) for c in ['D_Ip_','D_Ia_','D_Is_']] for k in self.age_groups])
         # indices of compartments that need to be used for computing tracing rate at each time step
         index_matrix_com = np.array([[self.states.index(c + k) for c in ['Ipi_','Iai_','Isi_']] for k in self.age_groups])
-        traj = self.cm.integrate(t, y0, index_matrix_cou, index_matrix_com, self.tsp*self.Cp, self.tsp*self.Ca, self.tsp*self.Cs,self.N, ivpargs={"max_step": 1.0})
+        traj = self.cm.integrate(t, y0, index_matrix_cou, index_matrix_com, self.tsp*self.Cp, self.tsp*self.Ca, self.tsp*self.Cs, self.N, ivpargs={"max_step": 1.0})
 
         return (t, traj["y"])
 
@@ -139,7 +139,7 @@ class SEIRTIODE:
         cl = list(self.cm.couplings)
         index_matrix_cou = np.array([[cl.index(c + k) for c in ['D_Ip_','D_Ia_','D_Is_']] for k in self.age_groups])
         index_matrix_com = np.array([[self.states.index(c + k) for c in ['Ipi_','Iai_','Isi_']] for k in self.age_groups])
-        traj = self.cm.binomial_chain(samples, tsteps, y0, index_matrix_cou, index_matrix_com, self.tsp*self.Cp, self.tsp*self.Ca, self.tsp*self.Cs,self.N, tmax/(tsteps+1))
+        traj = self.cm.binomial_chain(samples, tsteps, y0, index_matrix_cou, index_matrix_com, self.tsp*self.Cp, self.tsp*self.Ca, self.tsp*self.Cs,self.N, tmax/tsteps)
 
         return (t, traj)
 

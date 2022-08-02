@@ -52,11 +52,9 @@ class modCModel(CModel):
         dydt = yext*0.
 
         C = self._cdata['C']
-        # Adding tracing rate to the existing testing rates in the respective couplings. 
-        # Can change this for a for loop to allow for variable age group size. It appears that the vectorized argument of solve_ipv 
-        # can nott be used anyway
+
         for i in range(len(Zp)):
-            np.add.at(C, index_matrix_cou[i,:], self.tau_c[i]/N)
+            np.add.at(C, index_matrix_cou[i,:], self.tau_c[i])
 
         i1, i2, i3, i4 = self._cdata['i'].T 
 
@@ -65,45 +63,7 @@ class modCModel(CModel):
         np.add.at(dydt, i4,  cy) 
 
         # Update tau_c
-        self.tau_c = np.matmul(Zp, dydt[index_matrix_com[:,0]]) + np.matmul(Za,dydt[index_matrix_com[:,1]]) + np.matmul(Zs,dydt[index_matrix_com[:,2]])
-
-        return dydt[:-1]
-
-
-    def binomial_updates(self, y, index_matrix_cou, index_matrix_com, Zp, Za, Zs,N,h):
-        """Use the binomial chain model to update the states for each timestep
-        Compute the time derivative (in binomial chain way) of the model for a given state vector.
-        Arguments:
-            y {np.ndarray} -- State vector
-            index_matrix_cou {np.ndarray} -- Coupling indices where tau_c will be summed:
-                                        [Ipu_0_18=>Ipd_0_18      Iau_0_18=>Iad_0_18         Isu_0_18=>Isd_0_18]
-                                        [Ipu_18_40=>Ipd_18_40    Iau_18_40=>Iad_18_40       Isu_18_40=>Isd_18_40]
-                                        [Ipu_etc=>Ipd_etc        Isu_etc=>Isd_etc           Iau_etc=>Iad_etc]
-            index_matrix_com {np.ndarray} -- intermediate Compartment indices:
-                                        [Ipi_0_18     Iai_0_18      Isi_0_18]
-                                        [Ipi_18_40    Iai_18_40     Isi_18_40]
-                                        [Ipi_etc      Isi_etc       Iai_etc]
-            Z_* {matrix} -- Zeta pre/a/symptomatic (tsp*Ca/Cs/Cp). For now we assume there are different contact matrices for a,p and s
-        Returns:
-            [np.ndarray] -- Time derivative of y
-        """
-        yext = np.concatenate([y, [1]])
-        dydt = yext*0.
-
-        C = self._cdata['C']
-        # Adding tracing rate to the existing testing rates in the respective couplings. 
-        # Can change this for a for loop to allow for variable age group size. It appears that the vectorized argument of solve_ipv 
-        # can nott be used anyway
-        for i in range(len(Zp)):
-            np.add.at(C, index_matrix_cou[i,:], self.tau_c[i]/N)
-
-        i1, i2, i3, i4 = self._cdata['i'].T     
-        cy = stats.binom.rvs(np.int32(np.maximum(yext[i1],0)), 1-np.exp(-N,h*C*np.maximum(yext[i2],0)))  
-        np.add.at(dydt, i3, -cy)
-        np.add.at(dydt, i4,  cy) 
-
-        # Update tau_c
-        self.tau_c = np.matmul(Zp, dydt[index_matrix_com[:,0]]) + np.matmul(Za,dydt[index_matrix_com[:,1]]) + np.matmul(Zs,dydt[index_matrix_com[:,2]])
+        #self.tau_c = np.matmul(Zp, dydt[index_matrix_com[:,0]]/N) + np.matmul(Za,dydt[index_matrix_com[:,1]]/N) + np.matmul(Zs,dydt[index_matrix_com[:,2]]/N)
 
         return dydt[:-1]
 
@@ -123,6 +83,25 @@ class modCModel(CModel):
             ans['t_events'] = sol.t_events
 
         return ans
+
+    def binomial_updates(self, y, index_matrix_cou, index_matrix_com, Zp, Za, Zs,N,h):
+        yext = np.concatenate([y, [1]])
+        dydt = yext*0.
+
+        C = self._cdata['C']
+        for i in range(len(Zp)):
+            np.add.at(C, index_matrix_cou[i,:], self.tau_c[i])
+
+        i1, i2, i3, i4 = self._cdata['i'].T     
+        cy = stats.binom.rvs(np.int32(np.maximum(yext[i1],0)), 1-np.exp(-h*C*np.maximum(yext[i2],0)))  
+        np.add.at(dydt, i3, -cy)
+        np.add.at(dydt, i4,  cy) 
+
+        # Update tau_c
+        # self.tau_c = np.matmul(Zp, dydt[index_matrix_com[:,0]]/N) + np.matmul(Za,dydt[index_matrix_com[:,1]]/N) + np.matmul(Zs,dydt[index_matrix_com[:,2]]/N)
+
+        return dydt[:-1]
+
 
     def binomial_chain(self, samples, steps, y0, index_matrix_cou, index_matrix_com, Zp, Za, Zs,N,h):
         bin_traj = []
