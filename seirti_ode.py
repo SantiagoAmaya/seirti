@@ -29,10 +29,12 @@ class SEIRTIODE:
     def initial_conditions(self, **initial):
                 
         y0 = np.zeros(len(self.states))
+        self.N = 0
         for k, v in initial.items():
             y0[self.states.index(k)] = v
+            self.N += v
         return y0
-
+        
 
     def couplings(self):
        # Now add the coupling
@@ -42,13 +44,13 @@ class SEIRTIODE:
             # from S to Eu
             for j,k_ in enumerate(self.age_groups): 
                 # from undiagnosed individuals           
-                coupling.append((f'S_{k}*Ipu_{k_}:S_{k}=>Eu_{k}', self.q*self.Cp[i,j], f'beta_pu({i},{j})'))
-                coupling.append((f'S_{k}*Iau_{k_}:S_{k}=>Eu_{k}', self.q*self.Ca[i,j], f'beta_au({i},{j})'))
-                coupling.append((f'S_{k}*Isu_{k_}:S_{k}=>Eu_{k}', self.q*self.Cs[i,j], f'beta_su({i},{j})'))
+                coupling.append((f'S_{k}*Ipu_{k_}:S_{k}=>Eu_{k}', self.q*self.Cp[i,j]/self.N, f'beta_pu({i},{j})'))
+                coupling.append((f'S_{k}*Iau_{k_}:S_{k}=>Eu_{k}', self.q*self.Ca[i,j]/self.N, f'beta_au({i},{j})'))
+                coupling.append((f'S_{k}*Isu_{k_}:S_{k}=>Eu_{k}', self.q*self.Cs[i,j]/self.N, f'beta_su({i},{j})'))
                 # from diagnosed non-adherent individuals
-                coupling.append((f'S_{k}*Ipd_{k_}:S_{k}=>Eu_{k}', self.n*self.q*self.Cp[i,j], f'beta_pd({i},{j})'))
-                coupling.append((f'S_{k}*Iad_{k_}:S_{k}=>Eu_{k}', self.n*self.q*self.Ca[i,j], f'beta_ad({i},{j})'))
-                coupling.append((f'S_{k}*Isd_{k_}:S_{k}=>Eu_{k}', self.n*self.q*self.Cs[i,j], f'beta_sd({i},{j})'))
+                coupling.append((f'S_{k}*Ipd_{k_}:S_{k}=>Eu_{k}', self.n*self.q*self.Cp[i,j]/self.N, f'beta_pd({i},{j})'))
+                coupling.append((f'S_{k}*Iad_{k_}:S_{k}=>Eu_{k}', self.n*self.q*self.Ca[i,j]/self.N, f'beta_ad({i},{j})'))
+                coupling.append((f'S_{k}*Isd_{k_}:S_{k}=>Eu_{k}', self.n*self.q*self.Cs[i,j]/self.N, f'beta_sd({i},{j})'))
 
             # from Eu to Ipu
             coupling.append((f'Eu_{k}:Eu_{k}=>Ipu_{k}', self.gamma, f'gamma_u_{k}'))
@@ -86,7 +88,7 @@ class SEIRTIODE:
             coupling.append((f'Eu_{k}:Eu_{k}=>Ed_{k}', self.tau_r + self.tau_u, f'D_E_{k}'))
 
             # from Ipu to Ipd, random + universal testing using intermetiate compartment to allow contact tracing
-            coupling.append((f'Ipu_{k}:Ipu_{k}=>Ipi_{k}', self.tau_r + self.tau_u, f'D_Ip_{k}'))
+            coupling.append((f'Ipu_{k}:Ipu_{k}=>Ipi_{k}', (self.tau_r + self.tau_u), f'D_Ip_{k}'))
             coupling.append((f'Ipi_{k}:Ipi_{k}=>Ipd_{k}', 1,f'Ipi_{k}'))
             
             # from Iau to Iad, random + universal testing using intermetiate compartment to allow contact tracing
@@ -111,11 +113,13 @@ class SEIRTIODE:
         for desc, rate, name in self.couplings():
             self.cm.set_coupling_rate(desc, rate, name=name)
 
-        t = np.linspace(t0, tmax, tsteps+1)
+        t = np.linspace(t0, tmax, tsteps)
         cl = list(self.cm.couplings)
+        # indices of couplings where we need to add tracing rate
         index_matrix_cou = np.array([[cl.index(c + k) for c in ['D_Ip_','D_Ia_','D_Is_']] for k in self.age_groups])
+        # indices of compartments that need to be used for computing tracing rate at each time step
         index_matrix_com = np.array([[self.states.index(c + k) for c in ['Ipi_','Iai_','Isi_']] for k in self.age_groups])
-        traj = self.cm.integrate(t, y0, index_matrix_cou, index_matrix_com, self.tsp*self.Cp, self.tsp*self.Ca, self.tsp*self.Cs, ivpargs={"max_step": 1.0})
+        traj = self.cm.integrate(t, y0, index_matrix_cou, index_matrix_com, self.tsp*self.Cp, self.tsp*self.Ca, self.tsp*self.Cs,self.N, ivpargs={"max_step": 1.0})
 
         return (t, traj["y"])
 
@@ -131,11 +135,11 @@ class SEIRTIODE:
         for desc, rate, name in self.couplings():
             self.cm.set_coupling_rate(desc, rate, name=name)
         
-        t = np.linspace(t0, tmax, tsteps+1)
+        t = np.linspace(t0, tmax, tsteps)
         cl = list(self.cm.couplings)
         index_matrix_cou = np.array([[cl.index(c + k) for c in ['D_Ip_','D_Ia_','D_Is_']] for k in self.age_groups])
         index_matrix_com = np.array([[self.states.index(c + k) for c in ['Ipi_','Iai_','Isi_']] for k in self.age_groups])
-        traj = self.cm.binomial_chain(samples, tsteps, y0, index_matrix_cou, index_matrix_com, self.tsp*self.Cp, self.tsp*self.Ca, self.tsp*self.Cs, tmax/(tsteps+1))
+        traj = self.cm.binomial_chain(samples, tsteps, y0, index_matrix_cou, index_matrix_com, self.tsp*self.Cp, self.tsp*self.Ca, self.tsp*self.Cs,self.N, tmax/(tsteps+1))
 
         return (t, traj)
 
