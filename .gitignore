@@ -1,9 +1,8 @@
 /ode.png
 /bin_chain.png
-/model.py
 /prototypes copy.ipynb
 /prototypes copy 2.ipynb
 /prototypes.ipynb
 /__pycache__
 /test.ipynb
-/res.npz
+/*.npz
